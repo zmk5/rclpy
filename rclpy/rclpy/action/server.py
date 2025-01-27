@@ -30,6 +30,7 @@ from rclpy.qos import qos_profile_action_status_default
 from rclpy.qos import qos_profile_services_default
 from rclpy.qos import QoSProfile
 from rclpy.task import Future
+from rclpy.task import Task
 from rclpy.type_support import (Action, check_for_type_support, FeedbackMessage, FeedbackT,
                                 GetResultServiceRequest, GetResultServiceResponse, GoalT, ResultT,
                                 SendGoalServiceRequest)
@@ -98,7 +99,8 @@ class ServerGoalHandle(Generic[GoalT, ResultT, FeedbackT]):
         :param goal_info: GoalInfo message.
         :param goal_request: The user defined goal request message from an ActionClient.
         """
-        self._goal_handle = _rclpy.ActionGoalHandle(action_server._handle, goal_info)
+        self._goal_handle: Optional[_rclpy.ActionGoalHandle] = \
+            _rclpy.ActionGoalHandle(action_server._handle, goal_info)
         self._action_server = action_server
         self._goal_info = goal_info
         self._goal_request = goal_request
@@ -492,9 +494,11 @@ class ActionServer(Generic[GoalT, ResultT, FeedbackT], Waitable['ServerGoalHandl
         try:
             # If the client goes away anytime before this, sending the result response may fail.
             # Catch the exception here and go on so we don't crash.
-            self._handle.send_result_response(request_header, future.result())
+            result = future.result()
+            if result:
+                self._handle.send_result_response(request_header, result)
         except RCLError:
-            self._logger.warn('Failed to send result response (the client may have gone away)')
+            self._logger.warning('Failed to send result response (the client may have gone away)')
 
     @property
     def action_type(self) -> Type[Action[GoalT, ResultT, FeedbackT]]:
@@ -516,30 +520,30 @@ class ActionServer(Generic[GoalT, ResultT, FeedbackT], Waitable['ServerGoalHandl
         data: 'ServerGoalHandleDict[GoalT]' = {}
         if self._is_goal_request_ready:
             with self._lock:
-                taken_data = self._handle.take_goal_request(
+                taken_goal_data = self._handle.take_goal_request(
                     self._action_type.Impl.SendGoalService.Request,
                 )
                 # If take fails, then we get (None, None)
-                if all(taken_data):
-                    data['goal'] = taken_data
+                if taken_goal_data[0]:
+                    data['goal'] = taken_goal_data
 
         if self._is_cancel_request_ready:
             with self._lock:
-                taken_data = self._handle.take_cancel_request(
+                taken_cancel_data = self._handle.take_cancel_request(
                     self._action_type.Impl.CancelGoalService.Request,
                 )
                 # If take fails, then we get (None, None)
-                if all(taken_data):
-                    data['cancel'] = taken_data
+                if taken_cancel_data[0]:
+                    data['cancel'] = taken_cancel_data
 
         if self._is_result_request_ready:
             with self._lock:
-                taken_data = self._handle.take_result_request(
+                taken_result_data = self._handle.take_result_request(
                     self._action_type.Impl.GetResultService.Request,
                 )
                 # If take fails, then we get (None, None)
-                if all(taken_data):
-                    data['result'] = taken_data
+                if taken_result_data[0]:
+                    data['result'] = taken_result_data
 
         if self._is_goal_expired:
             with self._lock:
@@ -604,7 +608,8 @@ class ActionServer(Generic[GoalT, ResultT, FeedbackT], Waitable['ServerGoalHandl
 
         # Schedule user callback for execution
         if self._node.executor:
-            self._node.executor.create_task(self._execute_goal, execute_callback, goal_handle)
+            _: Task[None] = self._node.executor.create_task(self._execute_goal, execute_callback,
+                                                            goal_handle)
 
     def notify_goal_done(self) -> None:
         with self._lock:
