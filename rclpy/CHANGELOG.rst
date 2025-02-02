@@ -2,8 +2,8 @@
 Changelog for package rclpy
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+9.0.0 (2025-02-02)
+------------------
 * add QoS Profile/Depth support to Node. (`#1376 <https://github.com/ros2/rclpy/issues/1376>`_)
 * Various typing fixes (`#1402 <https://github.com/ros2/rclpy/issues/1402>`_)
 * Add types to Action with rhel roscli fix (`#1361 <https://github.com/ros2/rclpy/issues/1361>`_)
