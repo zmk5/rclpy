@@ -457,7 +457,7 @@ class ActionClient(Generic[GoalT, ResultT, FeedbackT],
         """
         if not isinstance(goal, self._action_type.Goal):
             raise TypeError(
-                f"Expected goal type ({type(self._action_type.Goal)}) but received ({type(goal)})")
+                f'Expected goal type ({type(self._action_type.Goal)}) but received ({type(goal)})')
 
         event = threading.Event()
 
@@ -510,7 +510,7 @@ class ActionClient(Generic[GoalT, ResultT, FeedbackT],
         """
         if not isinstance(goal, self._action_type.Goal):
             raise TypeError(
-                f"Expected goal type ({type(self._action_type.Goal)}) but received ({type(goal)})")
+                f'Expected goal type ({type(self._action_type.Goal)}) but received ({type(goal)})')
 
         request = self._action_type.Impl.SendGoalService.Request()
         request.goal_id = self._generate_random_uuid() if goal_uuid is None else goal_uuid
